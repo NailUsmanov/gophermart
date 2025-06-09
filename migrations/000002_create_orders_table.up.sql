@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS orders;
+
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
     order_number TEXT NOT NULL UNIQUE,
