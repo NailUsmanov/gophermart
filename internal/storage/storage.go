@@ -239,7 +239,7 @@ func (d *DataBaseStorage) GetUserBalance(ctx context.Context, userID int) (curre
 		return 0, 0, err
 	}
 	total := result.Float64 - withdrawns
-	return total, withdrawn, nil
+	return total, withdrawns, nil
 }
 
 func (d *DataBaseStorage) GetUserWithDrawns(ctx context.Context, userID int) (float64, error) {
