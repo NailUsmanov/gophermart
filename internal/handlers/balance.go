@@ -8,6 +8,7 @@ import (
 	"github.com/NailUsmanov/gophermart/internal/middleware"
 	"github.com/NailUsmanov/gophermart/internal/models"
 	"github.com/NailUsmanov/gophermart/internal/storage"
+	"github.com/NailUsmanov/gophermart/internal/validation"
 	"go.uber.org/zap"
 )
 
@@ -48,7 +49,7 @@ func UserBalance(s storage.Storage, sugar *zap.SugaredLogger) http.HandlerFunc {
 	})
 }
 
-func WithDraw(s storage.Storage, sugar *zap.SugaredLogger) http.HandlerFunc {
+func WithDraw(s storage.Storage, sugar *zap.SugaredLogger, v validation.OrderValidation) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sugar.Infof(">>> WithDraw endpoint called")
 		// Проверяем авторизацию пользователя
@@ -74,7 +75,7 @@ func WithDraw(s storage.Storage, sugar *zap.SugaredLogger) http.HandlerFunc {
 
 		// Проверяем валидность номера заказа по Луну
 		sugar.Infof("raw body for Luhn: %q", withDraw.NumberOrder)
-		IsValid := IsValidLuhn(withDraw.NumberOrder)
+		IsValid := v.IsValidLuhn(withDraw.NumberOrder)
 		sugar.Infof("passed Luhn: %v", IsValid)
 		if !IsValid {
 			http.Error(w, "Invalid order number", http.StatusUnprocessableEntity)

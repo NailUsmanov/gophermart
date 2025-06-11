@@ -5,14 +5,14 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/NailUsmanov/gophermart/internal/middleware"
 	"github.com/NailUsmanov/gophermart/internal/storage"
+	"github.com/NailUsmanov/gophermart/internal/validation"
 	"go.uber.org/zap"
 )
 
-func PostOrder(s storage.Storage, sugar *zap.SugaredLogger) http.HandlerFunc {
+func PostOrder(s storage.Storage, sugar *zap.SugaredLogger, v validation.OrderValidation) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sugar.Infof(">>> PostOrder endpoint called")
 		if r.Header.Get("Content-Type") != "text/plain" {
@@ -31,10 +31,11 @@ func PostOrder(s storage.Storage, sugar *zap.SugaredLogger) http.HandlerFunc {
 		orderNum := string(body)
 
 		// Проверяем валидность заказа через алгоритм Луна или выдаем ошибку 422 -  неверный формат номера заказа;
+
 		sugar.Infof("raw body for Luhn: %q", orderNum)
-		IsValid := IsValidLuhn(orderNum)
+		IsValid := v.IsValidLuhn(orderNum)
 		sugar.Infof("passed Luhn: %v", IsValid)
-		if !IsValidLuhn(orderNum) {
+		if !IsValid {
 			http.Error(w, "Invalid order number format", http.StatusUnprocessableEntity)
 			return
 		}
@@ -118,27 +119,4 @@ func GetUserOrders(s storage.Storage, sugar *zap.SugaredLogger) http.HandlerFunc
 			return
 		}
 	})
-}
-
-func IsValidLuhn(number string) bool {
-	valNumb := make([]int, 0)
-	for _, v := range number {
-		vInt, err := strconv.Atoi(string(v))
-		if err != nil || vInt < 0 || vInt > 9 {
-			return false
-		}
-		valNumb = append(valNumb, vInt)
-	}
-	sum := 0
-	for i := len(valNumb) - 1; i >= 0; i-- {
-		n := valNumb[i]
-		if (len(valNumb)-1-i)%2 == 1 {
-			n *= 2
-			if n > 9 {
-				n -= 9
-			}
-		}
-		sum += n
-	}
-	return sum%10 == 0
 }
