@@ -23,7 +23,6 @@ func PostOrder(s storage.Storage, sugar *zap.SugaredLogger) http.HandlerFunc {
 
 		// Читаем тело запроса
 		body, err := io.ReadAll(r.Body)
-		defer r.Body.Close()
 		if err != nil || len(body) == 0 {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
