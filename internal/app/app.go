@@ -47,7 +47,7 @@ func (a *App) setupRoutes() {
 		r.Use(middleware.AuthMiddleware)
 		r.Use(middleware.GzipMiddleware)
 		r.Post("/orders", handlers.PostOrder(a.storage, a.sugar, a.validation))
-		r.Get("/orders", handlers.GetUserOrders(a.storage, a.sugar))
+		r.Get("/orders", handlers.GetUserOrders(a.storage, a.sugar, a.validation))
 		r.Get("/balance", handlers.UserBalance(a.storage, a.sugar))
 		r.Post("/balance/withdraw", handlers.WithDraw(a.storage, a.sugar, a.validation))
 		r.Get("/withdrawals", handlers.AllUserWithDrawals(a.storage, a.sugar))

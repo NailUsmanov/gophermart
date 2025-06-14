@@ -2,11 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 
-	"github.com/NailUsmanov/gophermart/internal/middleware"
+	"github.com/NailUsmanov/gophermart/internal/service"
 	"github.com/NailUsmanov/gophermart/internal/storage"
 	"github.com/NailUsmanov/gophermart/internal/validation"
 	"go.uber.org/zap"
@@ -31,34 +30,25 @@ func PostOrder(s storage.Storage, sugar *zap.SugaredLogger, v validation.OrderVa
 		orderNum := string(body)
 
 		// Проверяем валидность заказа через алгоритм Луна или выдаем ошибку 422 -  неверный формат номера заказа;
-
-		sugar.Infof("raw body for Luhn: %q", orderNum)
-		IsValid := v.IsValidLuhn(orderNum)
-		sugar.Infof("passed Luhn: %v", IsValid)
-		if !IsValid {
-			http.Error(w, "Invalid order number format", http.StatusUnprocessableEntity)
-			return
-		}
-
 		// Достаем номер пользователя
-		userID, ok := r.Context().Value(middleware.UserLoginKey).(int)
-		sugar.Infof("DEBUG: userID from context = %d (ok=%v)", userID, ok)
-		sugar.Infof("DEBUG: context key = %#v", middleware.UserLoginKey)
-		sugar.Infof("DEBUG: raw context value = %#v", r.Context().Value(middleware.UserLoginKey))
-		if !ok {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
+		sugar.Infof("raw body for Luhn: %q", orderNum)
 
-		// Проверяем существует ли уже запись в базе
-		exists, existingUserID, err := s.CheckExistOrder(r.Context(), orderNum)
+		serv := service.NewService(s, v)
+		exists, existingUserID, userID, err := serv.CheckExistUser(r.Context(), orderNum)
 		if err != nil {
-			sugar.Errorf("ERROR: CheckExistOrder failed: %v", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			switch err {
+			case service.ErrUnauthorized:
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+			case service.ErrInvalidOrderFormat:
+				http.Error(w, "invalid order number format", http.StatusUnprocessableEntity)
+			case service.ErrInternal:
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+			default:
+				http.Error(w, "unknown error", http.StatusInternalServerError)
+			}
 			return
 		}
-
-		// Если существует, смотрим, принадлежит ли она именно нашему юзеру
+		// Проверяем существует ли уже запись в базе
 		if exists {
 			if existingUserID == userID {
 				w.WriteHeader(http.StatusOK)
@@ -70,13 +60,12 @@ func PostOrder(s storage.Storage, sugar *zap.SugaredLogger, v validation.OrderVa
 
 		// Создаем новый заказ. Если заказ уже существует по такому номеру, то вернет ошибку
 		sugar.Infof("Calling CreateNewOrder with userID=%d, orderNum=%s", userID, orderNum)
-		if err := s.CreateNewOrder(r.Context(), userID, orderNum, sugar); err != nil {
-			sugar.Errorf("CreateNewOrder error: %v", err)
-			if errors.Is(err, storage.ErrOrderAlreadyUploaded) {
-				http.Error(w, "Order already uploaded by another user", http.StatusConflict)
-			} else {
-				sugar.Errorf("CheckExistOrder error: %v", err)
+		if err := serv.CreateNewOrder(r.Context(), userID, orderNum, sugar); err != nil {
+			switch err {
+			case service.ErrInternal:
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
+			case storage.ErrOrderAlreadyUploaded:
+				http.Error(w, "order already uploaded by another person", http.StatusConflict)
 			}
 			return
 		}
@@ -84,29 +73,26 @@ func PostOrder(s storage.Storage, sugar *zap.SugaredLogger, v validation.OrderVa
 	}
 }
 
-func GetUserOrders(s storage.Storage, sugar *zap.SugaredLogger) http.HandlerFunc {
+func GetUserOrders(s storage.Storage, sugar *zap.SugaredLogger, v validation.OrderValidation) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sugar.Infof("GetUserOrder endpoint called")
 
-		// Извлекаем UserID из контекста через куки
-		userID, ok := r.Context().Value(middleware.UserLoginKey).(int)
-		sugar.Infof("DEBUG: userID from context = %d (ok=%v)", userID, ok)
-		// Если нет такого юзера возвращаем статус не авторизован
-		if !ok {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
+		// Создаем структуру сервис слоя
+		serv := service.NewService(s, v)
 
 		// Получаем все данные по заказам пользователя через метод GetOrdersByUserID
-		orders, err := s.GetOrdersByUserID(r.Context(), userID)
+		// и проверяем на наличие записей по конкретному пользователю
+		orders, err := serv.GetUserOrders(r.Context())
 		if err != nil {
 			sugar.Infof("GetOrdersByUserID failed: %v", err)
-			http.Error(w, "Method GetOrders has err", http.StatusInternalServerError)
-			return
-		}
-		// Если нет заказов возвращаем 204 No Content
-		if len(orders) == 0 {
-			w.WriteHeader(http.StatusNoContent)
+			switch err {
+			case service.ErrUnauthorized:
+				http.Error(w, "Unauthorize", http.StatusUnauthorized)
+			case service.ErrNoContent:
+				w.WriteHeader(http.StatusNoContent)
+			case service.ErrInternal:
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+			}
 			return
 		}
 		// Если все ок, то возвращаем JSON со списком заказов
