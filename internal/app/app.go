@@ -55,6 +55,15 @@ func (a *App) setupRoutes() {
 		r.Get("/withdrawals", handlers.AllUserWithDrawals(a.storage, a.sugar))
 	})
 }
-func (a *App) Run(context context.Context, addr string) error {
-	return http.ListenAndServe(addr, a.router)
+func (a *App) Run(ctx context.Context, addr string) error {
+	srv := http.Server{
+		Addr:    addr,
+		Handler: a.router,
+	}
+	go func() {
+		<-ctx.Done()
+		a.sugar.Infow("Shutting down server...")
+		_ = srv.Shutdown(context.Background())
+	}()
+	return srv.ListenAndServe()
 }
