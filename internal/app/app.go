@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/NailUsmanov/gophermart/internal/handlers"
+	"github.com/NailUsmanov/gophermart/internal/interfaces"
 	"github.com/NailUsmanov/gophermart/internal/middleware"
 	"github.com/NailUsmanov/gophermart/internal/storage"
 	"github.com/NailUsmanov/gophermart/internal/validation"
@@ -40,8 +41,9 @@ func NewApp(s storage.Storage, sugar *zap.SugaredLogger, accrualHost string) *Ap
 
 func (a *App) setupRoutes() {
 	a.router.Use(middleware.LoggingMiddleWare(a.sugar))
-	a.router.Post("/api/user/register", handlers.Register(a.storage, a.sugar))
-	a.router.Post("/api/user/login", handlers.Login(a.storage, a.sugar))
+	auth := interfaces.Auth(a.storage)
+	a.router.Post("/api/user/register", handlers.Register(auth, a.sugar))
+	a.router.Post("/api/user/login", handlers.Login(auth, a.sugar))
 
 	a.router.Route("/api/user", func(r chi.Router) {
 		r.Use(middleware.AuthMiddleware)
