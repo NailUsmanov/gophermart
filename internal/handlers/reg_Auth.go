@@ -6,12 +6,13 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/NailUsmanov/gophermart/internal/interfaces"
 	"github.com/NailUsmanov/gophermart/internal/storage"
 	"github.com/NailUsmanov/gophermart/models"
 	"go.uber.org/zap"
 )
 
-func Register(s storage.Storage, sugar *zap.SugaredLogger) http.HandlerFunc {
+func Register(s interfaces.Auth, sugar *zap.SugaredLogger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sugar.Infof(">>> Register endpoint called")
 		if r.Header.Get("Content-Type") != "application/json" {
@@ -62,7 +63,7 @@ func Register(s storage.Storage, sugar *zap.SugaredLogger) http.HandlerFunc {
 	}
 }
 
-func Login(s storage.Storage, sugar *zap.SugaredLogger) http.HandlerFunc {
+func Login(s interfaces.Auth, sugar *zap.SugaredLogger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Content-Type") != "application/json" {
 			http.Error(w, "invalid content type", http.StatusBadRequest)

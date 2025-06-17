@@ -53,6 +53,6 @@ func (a *App) setupRoutes() {
 		r.Get("/withdrawals", handlers.AllUserWithDrawals(a.storage, a.sugar))
 	})
 }
-func (a *App) Run(addr string) error {
+func (a *App) Run(context context.Context, addr string) error {
 	return http.ListenAndServe(addr, a.router)
 }
