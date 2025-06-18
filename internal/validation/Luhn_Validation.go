@@ -10,6 +10,9 @@ type LuhnValidation struct{}
 
 func (l *LuhnValidation) IsValidLuhn(number string) bool {
 	valNumb := make([]int, 0)
+	if len(number) == 0 {
+		return false
+	}
 	for _, v := range number {
 		vInt, err := strconv.Atoi(string(v))
 		if err != nil || vInt < 0 || vInt > 9 {

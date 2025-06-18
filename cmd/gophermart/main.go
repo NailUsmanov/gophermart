@@ -25,15 +25,17 @@ func main() {
 	// Создаем регистратор SugaredLogger
 	sugar := logger.Sugar()
 
-	// Создаем канал для сигналов
+	// Создаём канал, куда Go будет отправлять сигналы ОС — например, SIGINT (Ctrl+C) или SIGTERM (kill).
 	sigChan := make(chan os.Signal, 1)
+	// signal.Notify заставляет при получении сигнала SIGINT(Ctrl+C) или SIGTERM(kill) отправлять их в sigChan
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// Контекст, который отменится при сигнале
+	// Создаём контекст с возможностью отмены. Когда вызывается cancel(), канал ctx.Done() закрывается.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Отдельная горутина ждёт сигнал и вызывает cancel()
+	// Отдельная горутина ждёт сигнал в sigChan. Как только сигнал поступает — вызываем cancel()
+	// Это отменяет контекст, переданный в App.Run(), и активирует <-ctx.Done().
 	go func() {
 		<-sigChan
 		cancel()

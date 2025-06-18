@@ -18,11 +18,11 @@ var (
 )
 
 type Service struct {
-	Storage   storage.Storage
+	Storage   ServiceStorage
 	Validator validation.OrderValidation
 }
 
-func NewService(s storage.Storage, v validation.OrderValidation) *Service {
+func NewService(s ServiceStorage, v validation.OrderValidation) *Service {
 	return &Service{
 		Storage:   s,
 		Validator: v,

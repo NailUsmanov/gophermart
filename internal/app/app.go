@@ -60,9 +60,11 @@ func (a *App) Run(ctx context.Context, addr string) error {
 		Addr:    addr,
 		Handler: a.router,
 	}
+	// В фоновом потоке ждём, пока контекст не будет отменён (через cancel() в main)
 	go func() {
 		<-ctx.Done()
 		a.sugar.Infow("Shutting down server...")
+		// Graceful shutdown: останавливаем HTTP-сервер, завершаем текущие соединения, новые не принимаем.
 		_ = srv.Shutdown(context.Background())
 	}()
 	return srv.ListenAndServe()
