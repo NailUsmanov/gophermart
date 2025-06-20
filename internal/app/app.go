@@ -7,6 +7,7 @@ import (
 	"github.com/NailUsmanov/gophermart/internal/handlers"
 	"github.com/NailUsmanov/gophermart/internal/interfaces"
 	"github.com/NailUsmanov/gophermart/internal/middleware"
+	"github.com/NailUsmanov/gophermart/internal/service"
 	"github.com/NailUsmanov/gophermart/internal/storage"
 	"github.com/NailUsmanov/gophermart/internal/validation"
 	"github.com/NailUsmanov/gophermart/internal/worker"
@@ -20,6 +21,7 @@ type App struct {
 	sugar      *zap.SugaredLogger
 	worker     *worker.Worker
 	validation *validation.LuhnValidation
+	service    *service.Service
 }
 
 func NewApp(s storage.Storage, sugar *zap.SugaredLogger, accrualHost string) *App {
@@ -32,6 +34,7 @@ func NewApp(s storage.Storage, sugar *zap.SugaredLogger, accrualHost string) *Ap
 		sugar:      sugar,
 		worker:     w,
 		validation: &v,
+		service:    service.NewService(s, &v),
 	}
 	sugar.Info("App initialized")
 	w.Start(context.Background())
@@ -48,7 +51,7 @@ func (a *App) setupRoutes() {
 	a.router.Route("/api/user", func(r chi.Router) {
 		r.Use(middleware.AuthMiddleware)
 		r.Use(middleware.GzipMiddleware)
-		r.Post("/orders", handlers.PostOrder(a.storage, a.sugar, a.validation))
+		r.Post("/orders", handlers.PostOrder(a.service, a.sugar, a.validation))
 		r.Get("/orders", handlers.GetUserOrders(a.storage, a.sugar, a.validation))
 		r.Get("/balance", handlers.UserBalance(a.storage, a.sugar))
 		r.Post("/balance/withdraw", handlers.WithDraw(a.storage, a.sugar, a.validation))

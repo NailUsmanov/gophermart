@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func PostOrder(s storage.Storage, sugar *zap.SugaredLogger, v validation.OrderValidation) http.HandlerFunc {
+func PostOrder(s service.ServiceInterface, sugar *zap.SugaredLogger, v validation.OrderValidation) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sugar.Infof(">>> PostOrder endpoint called")
 		if r.Header.Get("Content-Type") != "text/plain" {
@@ -33,8 +33,7 @@ func PostOrder(s storage.Storage, sugar *zap.SugaredLogger, v validation.OrderVa
 		// Достаем номер пользователя
 		sugar.Infof("raw body for Luhn: %q", orderNum)
 
-		serv := service.NewService(s, v)
-		exists, existingUserID, userID, err := serv.CheckExistUser(r.Context(), orderNum)
+		exists, existingUserID, userID, err := s.CheckExistUser(r.Context(), orderNum)
 		if err != nil {
 			switch err {
 			case service.ErrUnauthorized:
@@ -60,7 +59,7 @@ func PostOrder(s storage.Storage, sugar *zap.SugaredLogger, v validation.OrderVa
 
 		// Создаем новый заказ. Если заказ уже существует по такому номеру, то вернет ошибку
 		sugar.Infof("Calling CreateNewOrder with userID=%d, orderNum=%s", userID, orderNum)
-		if err := serv.CreateNewOrder(r.Context(), userID, orderNum, sugar); err != nil {
+		if err := s.CreateNewOrder(r.Context(), userID, orderNum, sugar); err != nil {
 			switch err {
 			case service.ErrInternal:
 				http.Error(w, "Internal server error", http.StatusInternalServerError)

@@ -39,9 +39,23 @@ type BalanceIndicator interface {
 	GetAllUserWithdrawals(ctx context.Context, userID int) ([]models.UserWithDraw, error)
 }
 
+// Создаем интерфейс для работы с ним в тестах
+type WithdrawLogic interface {
+	CheckExistOrder(ctx context.Context, numberOrder string) (bool, int, error)
+	GetUserBalance(ctx context.Context, userID int) (float64, float64, error)
+	AddWithdrawOrder(ctx context.Context, userID int, number string, sum float64) error
+}
+
+// Только для хендлера AllUserWithdrawals
+type WithdrawalFetcher interface {
+	GetAllUserWithdrawals(ctx context.Context, userID int) ([]models.UserWithDraw, error)
+}
+
 type Storage interface {
+	WithdrawLogic
 	interfaces.Auth
 	OrderOption
 	WorkerAccrual
 	BalanceIndicator
+	WithdrawalFetcher
 }

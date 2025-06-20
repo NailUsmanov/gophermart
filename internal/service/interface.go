@@ -12,3 +12,8 @@ type ServiceStorage interface {
 	CreateNewOrder(ctx context.Context, userID int, orderNum string, sugar *zap.SugaredLogger) error
 	GetOrdersByUserID(ctx context.Context, userID int) ([]storage.Order, error)
 }
+
+type ServiceInterface interface {
+	CheckExistUser(ctx context.Context, orderNum string) (bool, int, int, error)
+	CreateNewOrder(ctx context.Context, userID int, orderNum string, sugar *zap.SugaredLogger) error
+}

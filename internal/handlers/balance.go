@@ -49,7 +49,7 @@ func UserBalance(s storage.Storage, sugar *zap.SugaredLogger) http.HandlerFunc {
 	})
 }
 
-func WithDraw(s storage.Storage, sugar *zap.SugaredLogger, v validation.OrderValidation) http.HandlerFunc {
+func WithDraw(s storage.WithdrawLogic, sugar *zap.SugaredLogger, v validation.OrderValidation) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sugar.Infof(">>> WithDraw endpoint called")
 		// Проверяем авторизацию пользователя
@@ -106,7 +106,7 @@ func WithDraw(s storage.Storage, sugar *zap.SugaredLogger, v validation.OrderVal
 	})
 }
 
-func AllUserWithDrawals(s storage.Storage, sugar *zap.SugaredLogger) http.HandlerFunc {
+func AllUserWithDrawals(s storage.WithdrawalFetcher, sugar *zap.SugaredLogger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sugar.Infof("AllUserWithDrawals endpoint called")
 

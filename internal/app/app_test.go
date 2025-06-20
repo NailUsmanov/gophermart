@@ -6,8 +6,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/NailUsmanov/gophermart/internal/handlers"
+	"github.com/NailUsmanov/gophermart/internal/middleware"
 	"github.com/NailUsmanov/gophermart/internal/models"
 	"github.com/NailUsmanov/gophermart/internal/storage"
+	"github.com/NailUsmanov/gophermart/internal/validation"
+	"github.com/go-chi/chi"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
 
@@ -83,4 +88,49 @@ func TestNewApp_InitializesRoutes(t *testing.T) {
 	if w.Code == http.StatusNotFound {
 		t.Errorf("Маршрут /api/user/register не найден")
 	}
+}
+
+// FakeAuthMiddleware — подменяет настоящую авторизацию в тестах
+func FakeAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Если есть кука "auth_token", вставляем userID=1 в контекст
+		_, err := r.Cookie("auth_token")
+		if err == nil {
+			ctx := context.WithValue(r.Context(), middleware.UserLoginKey, 1)
+			r = r.WithContext(ctx)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func TestNewAppGetUserOrders(t *testing.T) {
+	sugar := NewTestLogger()
+	st := &mockStorage{}
+	r := chi.NewRouter()
+
+	// Подключаем логирование и фейковую авторизацию
+	r.Use(middleware.LoggingMiddleWare(sugar))
+	r.Use(FakeAuthMiddleware)
+
+	// Добавляем нужный хендлер напрямую — без app
+	r.Get("/api/user/orders", handlers.GetUserOrders(st, sugar, &validation.LuhnValidation{}))
+
+	// 1. Без куки — должен быть 401
+	req := httptest.NewRequest("GET", "/api/user/orders", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	/// 2. С кукой — должен быть 204 (No Content), т.к. mockStorage вернёт пустой список
+	req = httptest.NewRequest("GET", "/api/user/orders", nil)
+	req.AddCookie(&http.Cookie{
+		Name:  "auth_token",
+		Value: "valid_token", // не важно что за токен — FakeAuthMiddleware всё равно вставит userID
+	})
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.NotEqual(t, http.StatusUnauthorized, w.Code)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Empty(t, w.Body.String())
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
 }
