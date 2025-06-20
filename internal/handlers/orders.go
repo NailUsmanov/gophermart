@@ -72,7 +72,7 @@ func PostOrder(s service.ServiceInterface, sugar *zap.SugaredLogger, v validatio
 	}
 }
 
-func GetUserOrders(s storage.Storage, sugar *zap.SugaredLogger, v validation.OrderValidation) http.HandlerFunc {
+func GetUserOrders(s service.ServiceStorage, sugar *zap.SugaredLogger, v validation.OrderValidation) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sugar.Infof("GetUserOrder endpoint called")
 

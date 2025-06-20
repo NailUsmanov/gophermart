@@ -43,7 +43,7 @@ func (s *Service) CheckExistUser(ctx context.Context, orderNum string) (exists b
 	// Проверяем существует ли уже запись в базе
 	exists, existingUserID, err := s.Storage.CheckExistOrder(ctx, orderNum)
 	if err != nil {
-		return false, 0, 0, ErrInternal
+		return false, 0, 0, err
 	}
 	return exists, existingUserID, userID, nil
 }
