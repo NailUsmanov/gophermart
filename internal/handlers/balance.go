@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func UserBalance(s storage.Storage, sugar *zap.SugaredLogger) http.HandlerFunc {
+func UserBalance(s storage.BalanceIndicator, sugar *zap.SugaredLogger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sugar.Infof(">>> UserBalance endpoint called")
 
