@@ -1,87 +1,72 @@
-package storage
+package storage_test
 
 import (
 	"context"
 	"testing"
+
+	"github.com/NailUsmanov/gophermart/internal/mocks"
+	"github.com/NailUsmanov/gophermart/internal/storage"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
-type mockWithdrawLogic struct {
-	CheckExistOrderFunc  func(context.Context, string) (bool, int, error)
-	GetUserBalanceFunc   func(context.Context, int) (float64, float64, error)
-	AddWithdrawOrderFunc func(context.Context, int, string, float64) error
-}
-
-func (m *mockWithdrawLogic) CheckExistOrder(ctx context.Context, numberOrder string) (bool, int, error) {
-	return m.CheckExistOrderFunc(ctx, numberOrder)
-}
-
-func (m *mockWithdrawLogic) GetUserBalance(ctx context.Context, userID int) (float64, float64, error) {
-	return m.GetUserBalanceFunc(ctx, userID)
-}
-
-func (m *mockWithdrawLogic) AddWithdrawOrder(ctx context.Context, userID int, number string, sum float64) error {
-	return m.AddWithdrawOrderFunc(ctx, userID, number, sum)
-}
-
 func TestAddWithdrawOrder(t *testing.T) {
-	tests := []struct {
-		name    string
-		mock    *mockWithdrawLogic
-		wantErr error
-	}{
-		{
-			name: "not enought money",
-			mock: &mockWithdrawLogic{
-				CheckExistOrderFunc: func(_ context.Context, _ string) (bool, int, error) {
-					return false, 0, nil
-				},
-				GetUserBalanceFunc: func(_ context.Context, _ int) (float64, float64, error) {
-					return 100.0, 0, nil
-				},
-				AddWithdrawOrderFunc: func(_ context.Context, _ int, _ string, _ float64) error {
-					return ErrNotEnoughFunds
-				},
-			},
-			wantErr: ErrNotEnoughFunds,
-		},
-		{
-			name: "order already exists",
-			mock: &mockWithdrawLogic{
-				CheckExistOrderFunc: func(_ context.Context, _ string) (bool, int, error) {
-					return true, 1, ErrOrderAlreadyUploaded
-				},
-				GetUserBalanceFunc: func(_ context.Context, _ int) (float64, float64, error) {
-					return 100.0, 0, nil
-				},
-				AddWithdrawOrderFunc: func(_ context.Context, _ int, _ string, _ float64) error {
-					return ErrOrderAlreadyUploaded
-				},
-			},
-			wantErr: ErrOrderAlreadyUploaded,
-		},
-		{
-			name: "correct operation",
-			mock: &mockWithdrawLogic{
-				CheckExistOrderFunc: func(_ context.Context, _ string) (bool, int, error) {
-					return false, 0, nil
-				},
-				GetUserBalanceFunc: func(_ context.Context, _ int) (float64, float64, error) {
-					return 100.0, 0, nil
-				},
-				AddWithdrawOrderFunc: func(_ context.Context, _ int, _ string, _ float64) error {
-					return nil
-				},
-			},
-			wantErr: nil,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.mock.AddWithdrawOrder(context.Background(), 1, "1234567890", 50)
-			if err != tt.wantErr {
-				t.Errorf("expected %v, got %v", tt.wantErr, err)
-			}
-		})
 
+	t.Run("correct operation", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockServ := mocks.NewMockWithdrawLogic(ctrl)
+		mockServ.EXPECT().CheckExistOrder(gomock.Any(), "1234567890").Return(false, 0, nil)
+		mockServ.EXPECT().GetUserBalance(gomock.Any(), 1).Return(100.0, 0.00, nil)
+		mockServ.EXPECT().AddWithdrawOrder(gomock.Any(), 1, "1234567890", 50.0).Return(nil)
+
+		err := ProcessWithdraw(context.Background(), mockServ, 1, "1234567890", 50.0)
+		assert.NoError(t, err)
+	})
+
+	t.Run("order already exists", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockServ := mocks.NewMockWithdrawLogic(ctrl)
+		mockServ.EXPECT().CheckExistOrder(gomock.Any(), "1234567890").Return(true, 1, nil)
+
+		err := ProcessWithdraw(context.Background(), mockServ, 1, "1234567890", 50.0)
+
+		assert.ErrorIs(t, storage.ErrOrderAlreadyUploaded, err)
+	})
+
+	t.Run("not enought money", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockServ := mocks.NewMockWithdrawLogic(ctrl)
+		mockServ.EXPECT().CheckExistOrder(gomock.Any(), "1234567890").Return(false, 0, nil)
+		mockServ.EXPECT().GetUserBalance(gomock.Any(), 1).Return(30.0, 10.0, nil)
+
+		err := ProcessWithdraw(context.Background(), mockServ, 1, "1234567890", 50.0)
+		assert.ErrorIs(t, err, storage.ErrNotEnoughFunds)
+	})
+}
+
+func ProcessWithdraw(ctx context.Context, logic storage.WithdrawLogic, userID int, number string, sum float64) error {
+	exists, _, err := logic.CheckExistOrder(ctx, number)
+	if err != nil {
+		return err
 	}
+	if exists {
+		return storage.ErrOrderAlreadyUploaded
+	}
+
+	current, withdrawn, err := logic.GetUserBalance(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if current-withdrawn < sum {
+		return storage.ErrNotEnoughFunds
+	}
+
+	return logic.AddWithdrawOrder(ctx, userID, number, sum)
 }
