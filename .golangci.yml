@@ -1,0 +1,26 @@
+run:
+  timeout: 2m
+
+linters-settings:
+  errcheck:
+    check-type-assertions: false
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - gosimple
+    - unused
+    - ineffassign
+    - gocritic
+    - gofmt
+    - goimports
+    - misspell
+  disable:
+    - typecheck
+    - staticcheck
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0

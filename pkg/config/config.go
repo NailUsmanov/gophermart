@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/caarlos0/env/v6"
+	env "github.com/caarlos0/env/v9"
 )
 
 type Config struct {
